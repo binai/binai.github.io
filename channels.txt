@@ -1758,8 +1758,9 @@
            	 }
 			]
     },
+
     {
-        "chineseName": "自  定  义",
+        "chineseName": "自  定  义1",
         "englishName": "User Defined",
         "isHidden" : "false",
         "identifier" : "tvlive_userdefined_identifier",
@@ -1774,41 +1775,3 @@
            	 }]
     }
 ]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
