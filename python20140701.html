@@ -1,0 +1,830 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="Keywords" content="blog"/>
+    <meta name="Description" content="blog"/>
+    <title>Binai 's Blog</title>
+    <link rel="shortcut icon" href="/static/favicon.png"/>
+    <link rel="stylesheet" type="text/css" href="/main.css" />
+
+<!-- Ad Muncher content start --><script type="text/javascript" src="http://interceptedby.admuncher.com/548631BB11FDC710/helper.js#0.23066.0" id="yXzy_MainScript"></script><link rel="stylesheet" href="http://interceptedby.admuncher.com/548631BB11FDC710/helper.css" type="text/css" media="all" /><!-- Ad Muncher content end -->
+
+
+</head>
+<body>
+<div class="main">
+    <div class="header">
+    	<ul id="pages">
+            <li><a href="/">首页</a></li>
+            <li><a href="/#/tags">标签</a></li>
+            <li><a href="/simple">登录</a></li>
+            <li><a href="/#/archive">归档</a></li>
+    	</ul>
+    	<li><a href="/About.html">关于</a></li>
+    </div>
+	<div class="wrap-header">
+	<h1>
+    <a href="/" id="title"></a>
+	</h1>
+	</div>
+<div id="md" style="display: none;">
+<!-- markdown -->
+##用迭代工具模拟zip和map
+要说明迭代工具的能力，来看一些高级用例。一但了解了列表解析、生成器和其他的迭代工具，就知道模拟众多的Python的函数式内置工具既直接又很有益。
+内置的zip和map函数如何组合可迭代对象和映射函数。使用多个序列参数，map以与zip配对元素相同的方式，把函数映射到取自每个序列的元素。
+```python
+>>> S1='abc'
+>>> S2='xyz123'
+>>> list(zip(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z')]
+>>> list(zip([-2,-1,0,1,2]))
+[(-2,), (-1,), (0,), (1,), (2,)]
+>>> list(zip([1,2,3],[2,3,4,5]))
+[(1, 2), (2, 3), (3, 4)]
+>>> list(map(abs,[-2,-1,0,1,2]))
+[2, 1, 0, 1, 2]
+```
+##编写自己的map(func,...)
+尽管map和zip内置函数快速而方便，问题可以在自己的代码中模拟它们。
+```python
+>>> def mymap(func,*seqs):
+	res=[]
+	for args in zip(*seqs):
+		res.append(func(*args))
+	return res
+
+>>> def mymap(func,*seqs):
+	return [func(*args) for args in zip(*seqs)]
+```
+这个版本很大程序上信赖于特殊的*args参数传递语法。它收集多个序列（实际上，是可迭代对象）参数，将其作为zip参数解包以便组合，然后成对的zip结果解包作为参数以便传入到函数。
+```python
+>>> print(mymap(abs,[-2,-1,0,1,2]))
+[2, 1, 0, 1, 2]
+>>> print(mymap(pow,[1,2,3],[2,3,4,5]))
+[1, 8, 81]
+```
+####编写自己的zip和map
+```python
+>>> def myzip(*seqs):
+	seqs=[list(S) for S in seqs]
+	res=[]
+	while all(seqs):
+		res.append(tuple(S.pop(0) for S in seqs))
+	return res
+
+>>> def mymapPad(*seqs,pad=None):
+	seqs=[list(S) for S in seqs]
+	res=[]
+	while any(seqs):
+		res.append(tuple((S.pop(0) if S else pad) for S in seqs))
+	return res
+
+>>> S1,S2='abc','xyz123'
+>>> print(myzip(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z')]
+>>> print(mymapPad(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z'), (None, '1'), (None, '2'), (None, '3')]
+>>> print(mymapPad(S1,S2,pad=99))
+[('a', 'x'), ('b', 'y'), ('c', 'z'), (99, '1'), (99, '2'), (99, '3')]
+```
+######
+下面的版本不是使用pop方法从列表中删除参数，而是通过计算最小和最大参数长度来完成其工作。
+```python
+>>> def myzip(*seqs):
+	minlen=min(len(S) for S in seqs)
+	return [tuple(S[i] for S in seqs) for i in range(minlen)]
+
+>>> def mymapPad(*seqs,pad=None):
+	maxlen=max(len(S) for S in seqs)
+	index=range(maxlen)
+	return [tuple((S[i] if len(S) >i else pad)for S in seqs)for i in index]
+
+>>> S1,S2='abc','xyz123'
+>>> print(myzip(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z')]
+>>> print(mymapPad(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z'), (None, '1'), (None, '2'), (None, '3')]
+>>> print(mymapPad(S1,S2,pad=99))
+[('a', 'x'), ('b', 'y'), ('c', 'z'), (99, '1'), (99, '2'), (99, '3')]
+```
+
+##内置类型和类中的值生成
+```python
+>>> D={'a':1,'b':2,'c':3}
+>>> x=iter(D)
+>>> next(x)
+'a'
+>>> next(x)
+'c'
+>>> for key in D:
+	print(key,D[key])
+
+	
+a 1
+c 3
+b 2
+>>> 
+```
+#Python3.0解析语法概括
+* 对于集合，新的常量形式{1,3,2}等同于set({1,3,2]),并且新的集合解析语法`{f(x) for x in S if P(x)}`就像是生成器表达式`set(f(x) for x in S if P(x))`,其中f(x)是一个任意表达式。
+* 对于字典，新的字典解析语法`{key:val for (key,val) in zip(keys,vals)}`像`dict(zip(keys,vals))`形式一样工作，并且`{x:f(x) for x in items}`像生成器表达式`dict((x,f(x) for x in items)`一样工作。
+
+下面是对Python3.0中所有解析替代试的总结。最后两种是新的，并且在Python2.6中不可用。
+```python
+>>> [x*x for x in range(10)]
+[0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+>>> (x*x for x in range(10))
+<generator object <genexpr> at 0x000000000304F2D0>
+>>> list((x*x for x in range(10)))
+[0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+>>> {x*x for x in range(10)}
+{0, 1, 4, 81, 64, 9, 16, 49, 25, 36}
+>>> {x:x*x for x in range(10)}
+{0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25, 6: 36, 7: 49, 8: 64, 9: 81}
+```
+###解析集合和字典解析
+从某种意义上讲，集合解析和字典解析只是把生成器表达式传递给类型名的语法糖。因此，二者都接受任何的可迭代对象，一个生成器在这里工作得很好。
+```python
+>>> {x*x for x in range(10)}
+{0, 1, 4, 81, 64, 9, 16, 49, 25, 36}
+>>> set(x*x for x in range(10))
+{0, 1, 4, 81, 64, 9, 16, 49, 25, 36}
+>>> 
+>>> {x:x*x for x in range(10)}
+{0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25, 6: 36, 7: 49, 8: 64, 9: 81}
+>>> dict((x,x*x) for x in range(10))
+{0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25, 6: 36, 7: 49, 8: 64, 9: 81}
+```
+然而，对于列表解析来说，总是可以用手动代码来构建结果对象。
+```python
+>>> res=set()
+>>> res
+set()
+>>> for x in range(10):
+	res.add(x*x)
+
+	
+>>> res
+{0, 1, 4, 81, 64, 9, 16, 49, 25, 36}
+
+>>> res={}
+>>> for x in range(10):
+	res[x]=x*x
+
+	
+>>> res
+{0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25, 6: 36, 7: 49, 8: 64, 9: 81}
+```
+尽管这两种形式都接受迭代器，它们没有根据需要产生结果的概念——两种形式都是一次构建所有对象。如果想要根据需求产生键和值，生成器表达式更合适。
+```python
+>>> G=((x,x*x) for x in range(10))
+>>> next(G)
+(0, 0)
+>>> next(G)
+(1, 1)
+```
+###针对集合和字典的扩展的解析语法
+和列表解析及生成器表达式一样，集合和字典解析都支持嵌套相关的if子句从结果中过滤掉元素。
+```python
+>>> [x*x for x in range(10) if x%2==0]
+[0, 4, 16, 36, 64]
+>>> {x*x for x in range(10) if x%2==0}
+{0, 16, 4, 64, 36}
+>>> {x:x*x for x in range(10) if x%2==0}
+{0: 0, 8: 64, 2: 4, 4: 16, 6: 36}
+```
+嵌套的for循环也有效，尽管两种类型的对象无序的和无副本的特性可能会便利结果看上去缺乏直接性。
+```python
+>>> [x+y for x in [1,2,3] for y in [4,5,6]]
+[5, 6, 7, 6, 7, 8, 7, 8, 9]
+>>> {x+y for x in [1,2,3] for y in [4,5,6]}
+{8, 9, 5, 6, 7}
+>>> {x:y for x in [1,2,3] for y in [4,5,6]}
+{1: 6, 2: 6, 3: 6}
+```
+**和列表解析一样，集合解析和字典解析也可以在任何类型的可迭代对象上迭代——列表、字符串、文件、范围以及支持迭代协议的任何其他类型。**
+```python
+>>> {x+y for x in 'ab' for y in 'cd'}
+{'bd', 'ac', 'ad', 'bc'}
+>>> {x+y:(ord(x),ord(y)) for x in 'ab' for y in 'cd'}
+{'bd': (98, 100), 'ac': (97, 99), 'ad': (97, 100), 'bc': (98, 99)}
+>>> {k*2 for k in ['spam','ham','sausage'] if k[0]=='s'}
+{'sausagesausage', 'spamspam'}
+>>> {k.upper():k*2 for k in ['spam','ham','sausage'] if k[0]=='s'}
+{'SAUSAGE': 'sausagesausage', 'SPAM': 'spamspam'}
+```
+
+#**对迭代的各种方法进行计时**
+列表解析要比for循环语句有速度方面的性能优势，而且map会依据调用方法的不同表现更好或更差的性能。
+###对模块计时
+Python便利对代码计时变得很容易。要看看迭代选项是如何叠加起来的，让我们从编写到一个模块文件中的简单但通用的计时器工具函数开始，从而使其可以用于各类程序中。
+```python
+>>> import time
+>>> reps=1000
+>>> repslist=range(reps)
+>>> def timer(func,*pargs,**kargs):
+	start=time.clock()
+	for i in repslist:
+		ret =func(*pargs,**kargs)
+	elapsed=time.clock()-start
+	return(elapsed,ret)
+```
+实际上，这个模块通过获取开始时间、调用函数固定的次数并且用开始时间减去停止时间，从而对使用任何位置和关键字参数调用任意函数进行计时。注意以下几点：
+* Python的time模块允许访问当前时间，精度随着每个平台而有所不同。在Windows上，这个调用号称能够达到微秒的精度。
+* range调用放到了计时循环之外，因此，它的构建成本不会计算到Python2.6的计时函数中。在Python3.0的range是一个迭代器，因此这个步骤是不需要的。
+* reps计数是一个全局变量，如果需要的话，导入者可以修改它：`mytimer.reps=N`
+
+###计时脚本
+现在，要计时迭代工具的速度，运行如下的脚本。
+```python
+>>> import time
+>>> import sys
+>>> reps=10000
+>>> repslist=range(reps)
+
+>>> def mtimer(func,*pargs,**kargs):
+	start=time.clock()
+	for i in repslist:
+		ret =func(*pargs,**kargs)
+	elapsed=time.clock()-start
+	return(elapsed,ret)
+	
+>>> def forloop():
+	res=[]
+	for x in repslist:
+		res.append(abs(x))
+	return res
+
+>>> def listComp():
+	return [abs(x) for x in repslist]
+
+>>> def mapCall():
+	return list(map(abs,repslist))
+
+>>> def genExpr():
+	return list(abs(x) for x in repslist)
+
+>>> def genFunc():
+	def gen():
+		for x in repslist:
+			yield abs(x)
+	return list(gen())
+
+>>> print(sys.version)
+3.2.5 (default, May 15 2013, 23:07:10) [MSC v.1500 64 bit (AMD64)]
+
+>>> for test in (forloop,listComp,mapCall,genExpr,genFunc):
+	elapsed,result=mtimer(test)
+	print('-'*33)
+	print('%-9s:%.5f => [%s...%s]'%(test.__name__,elapsed,result[0],result[-1]))
+
+	
+---------------------------------
+forloop  :20.23900 => [0...9999]
+---------------------------------
+listComp :10.15829 => [0...9999]
+---------------------------------
+mapCall  :8.27819 => [0...9999]
+---------------------------------
+genExpr  :17.42403 => [0...9999]
+---------------------------------
+genFunc  :17.45394 => [0...9999]
+
+```
+这段脚本测试了五种构建结果列表的替代方法，并且每种方法都执行了一千万次级别的步骤，也就是说，五个测试中的每一个都构建了拥有10000个元素的列表1000次。
+
+> 注意我们必须通过内置的list调用来运行生成器表达式和函数结果，从而迫使它们产生其所有的值；如果没有这么做，可能会得到并没有真正工作的生成器。在Python3.0中，我们必须对map结果做同样的事情，因为它现在也是一个可迭代对象。*`__name__`是一个内置的属性，它给出函数的名称。*
+
+###计时结果
+上一小节的速度结果如下：
+map比列表解析略微快一点，但二都比for循环快很多，并且，成生器表达式和函数速度居中。
+
+```python
+---------------------------------
+forloop  :20.23900 => [0...9999]
+---------------------------------
+listComp :10.15829 => [0...9999]
+---------------------------------
+mapCall  :8.27819 => [0...9999]
+---------------------------------
+genExpr  :17.42403 => [0...9999]
+---------------------------------
+genFunc  :17.45394 => [0...9999]
+```
+> 生成器表达式比列表解析运行得慢。尽管把一个生成器表达式包装到一个lsit调用中，会使得其功能等同于一个带有方括号的列表解析，两种表达式的内部实现看上去有所不同。
+
+`return [abs(x) for x in range(size)]`
+
+`return lsit(abs(x) for x in range(size))`
+
+由于解释器优化是如此内部化的一个问题，像这样对Python代码进行性能分析是一件非常需要技术的事情。事实上不可能猜测哪种方法会执行的最好，最好的办法是在自己的计算机上，用自己的Python版本，对自己的代码计时。
+> 在map调用中使用一个用户定义的函数至少会因为两种因素中的一种而执行较慢，并且列表解析对于这一测试运行最快。
+
+
+##计时模块替代方案
+* 它总是使用`time.clock`调用计时代码。尽管该选项在Windows上是最好的，`time.time`在某些UNIX平台上可能提供更好的解析
+* 调整重复的次数需要修改模块级别的全局变量——如果要使用timer函数并且有多个导入者共享的话，这是不太理想的安排。
+* 此外，计时器必须通过运行测试函数很多次才能工作。要考虑随机的系统载入的波动，在所有的测试中选择最好的时间，而不是总的时间，可能会更好。
+
+```python
+>>> import time,sys
+>>> if sys.platform[:3]=='win':
+	timefunc=time.clock
+else:
+	timefunc=time.time
+
+	
+>>> def trace(*args):pass
+
+>>> def timer(func,*pargs,**kargs):
+	_reps=kargs.pop('_reps',1000)
+	trace(func,pargs,kargs,_reps)
+	repslist=range(_reps)
+	start=timefunc()
+	for i in repslist:
+		ret=func(*pargs,**kargs)
+	elapsed=timefunc()-start
+	return(elapsed,ret)
+
+>>> def best(func,*pargs,**kargs):
+	_reps=kargs.pop('_reps',50)
+	best=2**32
+	for i in range(_reps):
+		(time,ret)=timer(func,*pargs,**kargs)
+		if time<best:best=time
+	return (best,ret)
+```
+列表解析在大多娄情况下表现最好，当使用内置函数时，map表现更好。
+
+###其也建议
+
+####`timeit`模块
+####`profile`标准库模块
+####`str.format`格式化
+
+
+##**函数陷阱**
+> ####本地变量是静态检测的
+> ####默认和可变对象
+> ####没有return语句的函数
+> ####嵌套作用域的循环变量
+
+
+
+<!-- markdown end -->
+</div>
+<div class="entry" id="main">
+<!-- content -->
+<h2 id="zipmap">用迭代工具模拟zip和map</h2>
+
+<p>要说明迭代工具的能力，来看一些高级用例。一但了解了列表解析、生成器和其他的迭代工具，就知道模拟众多的Python的函数式内置工具既直接又很有益。
+内置的zip和map函数如何组合可迭代对象和映射函数。使用多个序列参数，map以与zip配对元素相同的方式，把函数映射到取自每个序列的元素。</p>
+
+<pre><code class="python">&gt;&gt;&gt; S1='abc'
+&gt;&gt;&gt; S2='xyz123'
+&gt;&gt;&gt; list(zip(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z')]
+&gt;&gt;&gt; list(zip([-2,-1,0,1,2]))
+[(-2,), (-1,), (0,), (1,), (2,)]
+&gt;&gt;&gt; list(zip([1,2,3],[2,3,4,5]))
+[(1, 2), (2, 3), (3, 4)]
+&gt;&gt;&gt; list(map(abs,[-2,-1,0,1,2]))
+[2, 1, 0, 1, 2]
+</code></pre>
+
+<h2 id="mapfunc">编写自己的map(func,...)</h2>
+
+<p>尽管map和zip内置函数快速而方便，问题可以在自己的代码中模拟它们。</p>
+
+<pre><code class="python">&gt;&gt;&gt; def mymap(func,*seqs):
+    res=[]
+    for args in zip(*seqs):
+        res.append(func(*args))
+    return res
+
+&gt;&gt;&gt; def mymap(func,*seqs):
+    return [func(*args) for args in zip(*seqs)]
+</code></pre>
+
+<p>这个版本很大程序上信赖于特殊的*args参数传递语法。它收集多个序列（实际上，是可迭代对象）参数，将其作为zip参数解包以便组合，然后成对的zip结果解包作为参数以便传入到函数。</p>
+
+<pre><code class="python">&gt;&gt;&gt; print(mymap(abs,[-2,-1,0,1,2]))
+[2, 1, 0, 1, 2]
+&gt;&gt;&gt; print(mymap(pow,[1,2,3],[2,3,4,5]))
+[1, 8, 81]
+</code></pre>
+
+<h4 id="zipmap">编写自己的zip和map</h4>
+
+<pre><code class="python">&gt;&gt;&gt; def myzip(*seqs):
+    seqs=[list(S) for S in seqs]
+    res=[]
+    while all(seqs):
+        res.append(tuple(S.pop(0) for S in seqs))
+    return res
+
+&gt;&gt;&gt; def mymapPad(*seqs,pad=None):
+    seqs=[list(S) for S in seqs]
+    res=[]
+    while any(seqs):
+        res.append(tuple((S.pop(0) if S else pad) for S in seqs))
+    return res
+
+&gt;&gt;&gt; S1,S2='abc','xyz123'
+&gt;&gt;&gt; print(myzip(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z')]
+&gt;&gt;&gt; print(mymapPad(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z'), (None, '1'), (None, '2'), (None, '3')]
+&gt;&gt;&gt; print(mymapPad(S1,S2,pad=99))
+[('a', 'x'), ('b', 'y'), ('c', 'z'), (99, '1'), (99, '2'), (99, '3')]
+</code></pre>
+
+<h5 id="">#</h5>
+
+<p>下面的版本不是使用pop方法从列表中删除参数，而是通过计算最小和最大参数长度来完成其工作。</p>
+
+<pre><code class="python">&gt;&gt;&gt; def myzip(*seqs):
+    minlen=min(len(S) for S in seqs)
+    return [tuple(S[i] for S in seqs) for i in range(minlen)]
+
+&gt;&gt;&gt; def mymapPad(*seqs,pad=None):
+    maxlen=max(len(S) for S in seqs)
+    index=range(maxlen)
+    return [tuple((S[i] if len(S) &gt;i else pad)for S in seqs)for i in index]
+
+&gt;&gt;&gt; S1,S2='abc','xyz123'
+&gt;&gt;&gt; print(myzip(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z')]
+&gt;&gt;&gt; print(mymapPad(S1,S2))
+[('a', 'x'), ('b', 'y'), ('c', 'z'), (None, '1'), (None, '2'), (None, '3')]
+&gt;&gt;&gt; print(mymapPad(S1,S2,pad=99))
+[('a', 'x'), ('b', 'y'), ('c', 'z'), (99, '1'), (99, '2'), (99, '3')]
+</code></pre>
+
+<h2 id="">内置类型和类中的值生成</h2>
+
+<pre><code class="python">&gt;&gt;&gt; D={'a':1,'b':2,'c':3}
+&gt;&gt;&gt; x=iter(D)
+&gt;&gt;&gt; next(x)
+'a'
+&gt;&gt;&gt; next(x)
+'c'
+&gt;&gt;&gt; for key in D:
+    print(key,D[key])
+
+
+a 1
+c 3
+b 2
+&gt;&gt;&gt; 
+</code></pre>
+
+<h1 id="python30">Python3.0解析语法概括</h1>
+
+<ul>
+<li>对于集合，新的常量形式{1,3,2}等同于set({1,3,2]),并且新的集合解析语法<code>{f(x) for x in S if P(x)}</code>就像是生成器表达式<code>set(f(x) for x in S if P(x))</code>,其中f(x)是一个任意表达式。</li>
+<li>对于字典，新的字典解析语法<code>{key:val for (key,val) in zip(keys,vals)}</code>像<code>dict(zip(keys,vals))</code>形式一样工作，并且<code>{x:f(x) for x in items}</code>像生成器表达式<code>dict((x,f(x) for x in items)</code>一样工作。</li>
+</ul>
+
+<p>下面是对Python3.0中所有解析替代试的总结。最后两种是新的，并且在Python2.6中不可用。</p>
+
+<pre><code class="python">&gt;&gt;&gt; [x*x for x in range(10)]
+[0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+&gt;&gt;&gt; (x*x for x in range(10))
+&lt;generator object &lt;genexpr&gt; at 0x000000000304F2D0&gt;
+&gt;&gt;&gt; list((x*x for x in range(10)))
+[0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+&gt;&gt;&gt; {x*x for x in range(10)}
+{0, 1, 4, 81, 64, 9, 16, 49, 25, 36}
+&gt;&gt;&gt; {x:x*x for x in range(10)}
+{0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25, 6: 36, 7: 49, 8: 64, 9: 81}
+</code></pre>
+
+<h3 id="">解析集合和字典解析</h3>
+
+<p>从某种意义上讲，集合解析和字典解析只是把生成器表达式传递给类型名的语法糖。因此，二者都接受任何的可迭代对象，一个生成器在这里工作得很好。</p>
+
+<pre><code class="python">&gt;&gt;&gt; {x*x for x in range(10)}
+{0, 1, 4, 81, 64, 9, 16, 49, 25, 36}
+&gt;&gt;&gt; set(x*x for x in range(10))
+{0, 1, 4, 81, 64, 9, 16, 49, 25, 36}
+&gt;&gt;&gt; 
+&gt;&gt;&gt; {x:x*x for x in range(10)}
+{0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25, 6: 36, 7: 49, 8: 64, 9: 81}
+&gt;&gt;&gt; dict((x,x*x) for x in range(10))
+{0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25, 6: 36, 7: 49, 8: 64, 9: 81}
+</code></pre>
+
+<p>然而，对于列表解析来说，总是可以用手动代码来构建结果对象。</p>
+
+<pre><code class="python">&gt;&gt;&gt; res=set()
+&gt;&gt;&gt; res
+set()
+&gt;&gt;&gt; for x in range(10):
+    res.add(x*x)
+
+
+&gt;&gt;&gt; res
+{0, 1, 4, 81, 64, 9, 16, 49, 25, 36}
+
+&gt;&gt;&gt; res={}
+&gt;&gt;&gt; for x in range(10):
+    res[x]=x*x
+
+
+&gt;&gt;&gt; res
+{0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25, 6: 36, 7: 49, 8: 64, 9: 81}
+</code></pre>
+
+<p>尽管这两种形式都接受迭代器，它们没有根据需要产生结果的概念——两种形式都是一次构建所有对象。如果想要根据需求产生键和值，生成器表达式更合适。</p>
+
+<pre><code class="python">&gt;&gt;&gt; G=((x,x*x) for x in range(10))
+&gt;&gt;&gt; next(G)
+(0, 0)
+&gt;&gt;&gt; next(G)
+(1, 1)
+</code></pre>
+
+<h3 id="">针对集合和字典的扩展的解析语法</h3>
+
+<p>和列表解析及生成器表达式一样，集合和字典解析都支持嵌套相关的if子句从结果中过滤掉元素。</p>
+
+<pre><code class="python">&gt;&gt;&gt; [x*x for x in range(10) if x%2==0]
+[0, 4, 16, 36, 64]
+&gt;&gt;&gt; {x*x for x in range(10) if x%2==0}
+{0, 16, 4, 64, 36}
+&gt;&gt;&gt; {x:x*x for x in range(10) if x%2==0}
+{0: 0, 8: 64, 2: 4, 4: 16, 6: 36}
+</code></pre>
+
+<p>嵌套的for循环也有效，尽管两种类型的对象无序的和无副本的特性可能会便利结果看上去缺乏直接性。</p>
+
+<pre><code class="python">&gt;&gt;&gt; [x+y for x in [1,2,3] for y in [4,5,6]]
+[5, 6, 7, 6, 7, 8, 7, 8, 9]
+&gt;&gt;&gt; {x+y for x in [1,2,3] for y in [4,5,6]}
+{8, 9, 5, 6, 7}
+&gt;&gt;&gt; {x:y for x in [1,2,3] for y in [4,5,6]}
+{1: 6, 2: 6, 3: 6}
+</code></pre>
+
+<p><strong>和列表解析一样，集合解析和字典解析也可以在任何类型的可迭代对象上迭代——列表、字符串、文件、范围以及支持迭代协议的任何其他类型。</strong></p>
+
+<pre><code class="python">&gt;&gt;&gt; {x+y for x in 'ab' for y in 'cd'}
+{'bd', 'ac', 'ad', 'bc'}
+&gt;&gt;&gt; {x+y:(ord(x),ord(y)) for x in 'ab' for y in 'cd'}
+{'bd': (98, 100), 'ac': (97, 99), 'ad': (97, 100), 'bc': (98, 99)}
+&gt;&gt;&gt; {k*2 for k in ['spam','ham','sausage'] if k[0]=='s'}
+{'sausagesausage', 'spamspam'}
+&gt;&gt;&gt; {k.upper():k*2 for k in ['spam','ham','sausage'] if k[0]=='s'}
+{'SAUSAGE': 'sausagesausage', 'SPAM': 'spamspam'}
+</code></pre>
+
+<h1 id=""><strong>对迭代的各种方法进行计时</strong></h1>
+
+<p>列表解析要比for循环语句有速度方面的性能优势，而且map会依据调用方法的不同表现更好或更差的性能。</p>
+
+<h3 id="">对模块计时</h3>
+
+<p>Python便利对代码计时变得很容易。要看看迭代选项是如何叠加起来的，让我们从编写到一个模块文件中的简单但通用的计时器工具函数开始，从而使其可以用于各类程序中。</p>
+
+<pre><code class="python">&gt;&gt;&gt; import time
+&gt;&gt;&gt; reps=1000
+&gt;&gt;&gt; repslist=range(reps)
+&gt;&gt;&gt; def timer(func,*pargs,**kargs):
+    start=time.clock()
+    for i in repslist:
+        ret =func(*pargs,**kargs)
+    elapsed=time.clock()-start
+    return(elapsed,ret)
+</code></pre>
+
+<p>实际上，这个模块通过获取开始时间、调用函数固定的次数并且用开始时间减去停止时间，从而对使用任何位置和关键字参数调用任意函数进行计时。注意以下几点：
+* Python的time模块允许访问当前时间，精度随着每个平台而有所不同。在Windows上，这个调用号称能够达到微秒的精度。
+* range调用放到了计时循环之外，因此，它的构建成本不会计算到Python2.6的计时函数中。在Python3.0的range是一个迭代器，因此这个步骤是不需要的。
+* reps计数是一个全局变量，如果需要的话，导入者可以修改它：<code>mytimer.reps=N</code></p>
+
+<h3 id="">计时脚本</h3>
+
+<p>现在，要计时迭代工具的速度，运行如下的脚本。</p>
+
+<pre><code class="python">&gt;&gt;&gt; import time
+&gt;&gt;&gt; import sys
+&gt;&gt;&gt; reps=10000
+&gt;&gt;&gt; repslist=range(reps)
+
+&gt;&gt;&gt; def mtimer(func,*pargs,**kargs):
+    start=time.clock()
+    for i in repslist:
+        ret =func(*pargs,**kargs)
+    elapsed=time.clock()-start
+    return(elapsed,ret)
+
+&gt;&gt;&gt; def forloop():
+    res=[]
+    for x in repslist:
+        res.append(abs(x))
+    return res
+
+&gt;&gt;&gt; def listComp():
+    return [abs(x) for x in repslist]
+
+&gt;&gt;&gt; def mapCall():
+    return list(map(abs,repslist))
+
+&gt;&gt;&gt; def genExpr():
+    return list(abs(x) for x in repslist)
+
+&gt;&gt;&gt; def genFunc():
+    def gen():
+        for x in repslist:
+            yield abs(x)
+    return list(gen())
+
+&gt;&gt;&gt; print(sys.version)
+3.2.5 (default, May 15 2013, 23:07:10) [MSC v.1500 64 bit (AMD64)]
+
+&gt;&gt;&gt; for test in (forloop,listComp,mapCall,genExpr,genFunc):
+    elapsed,result=mtimer(test)
+    print('-'*33)
+    print('%-9s:%.5f =&gt; [%s...%s]'%(test.__name__,elapsed,result[0],result[-1]))
+
+
+---------------------------------
+forloop  :20.23900 =&gt; [0...9999]
+---------------------------------
+listComp :10.15829 =&gt; [0...9999]
+---------------------------------
+mapCall  :8.27819 =&gt; [0...9999]
+---------------------------------
+genExpr  :17.42403 =&gt; [0...9999]
+---------------------------------
+genFunc  :17.45394 =&gt; [0...9999]
+</code></pre>
+
+<p>这段脚本测试了五种构建结果列表的替代方法，并且每种方法都执行了一千万次级别的步骤，也就是说，五个测试中的每一个都构建了拥有10000个元素的列表1000次。</p>
+
+<blockquote>
+  <p>注意我们必须通过内置的list调用来运行生成器表达式和函数结果，从而迫使它们产生其所有的值；如果没有这么做，可能会得到并没有真正工作的生成器。在Python3.0中，我们必须对map结果做同样的事情，因为它现在也是一个可迭代对象。<em><code>__name__</code>是一个内置的属性，它给出函数的名称。</em></p>
+</blockquote>
+
+<h3 id="">计时结果</h3>
+
+<p>上一小节的速度结果如下：
+map比列表解析略微快一点，但二都比for循环快很多，并且，成生器表达式和函数速度居中。</p>
+
+<pre><code class="python">---------------------------------
+forloop  :20.23900 =&gt; [0...9999]
+---------------------------------
+listComp :10.15829 =&gt; [0...9999]
+---------------------------------
+mapCall  :8.27819 =&gt; [0...9999]
+---------------------------------
+genExpr  :17.42403 =&gt; [0...9999]
+---------------------------------
+genFunc  :17.45394 =&gt; [0...9999]
+</code></pre>
+
+<blockquote>
+  <p>生成器表达式比列表解析运行得慢。尽管把一个生成器表达式包装到一个lsit调用中，会使得其功能等同于一个带有方括号的列表解析，两种表达式的内部实现看上去有所不同。</p>
+</blockquote>
+
+<p><code>return [abs(x) for x in range(size)]</code></p>
+
+<p><code>return lsit(abs(x) for x in range(size))</code></p>
+
+<p>由于解释器优化是如此内部化的一个问题，像这样对Python代码进行性能分析是一件非常需要技术的事情。事实上不可能猜测哪种方法会执行的最好，最好的办法是在自己的计算机上，用自己的Python版本，对自己的代码计时。</p>
+
+<blockquote>
+  <p>在map调用中使用一个用户定义的函数至少会因为两种因素中的一种而执行较慢，并且列表解析对于这一测试运行最快。</p>
+</blockquote>
+
+<h2 id="">计时模块替代方案</h2>
+
+<ul>
+<li>它总是使用<code>time.clock</code>调用计时代码。尽管该选项在Windows上是最好的，<code>time.time</code>在某些UNIX平台上可能提供更好的解析</li>
+<li>调整重复的次数需要修改模块级别的全局变量——如果要使用timer函数并且有多个导入者共享的话，这是不太理想的安排。</li>
+<li>此外，计时器必须通过运行测试函数很多次才能工作。要考虑随机的系统载入的波动，在所有的测试中选择最好的时间，而不是总的时间，可能会更好。</li>
+</ul>
+
+<pre><code class="python">&gt;&gt;&gt; import time,sys
+&gt;&gt;&gt; if sys.platform[:3]=='win':
+    timefunc=time.clock
+else:
+    timefunc=time.time
+
+
+&gt;&gt;&gt; def trace(*args):pass
+
+&gt;&gt;&gt; def timer(func,*pargs,**kargs):
+    _reps=kargs.pop('_reps',1000)
+    trace(func,pargs,kargs,_reps)
+    repslist=range(_reps)
+    start=timefunc()
+    for i in repslist:
+        ret=func(*pargs,**kargs)
+    elapsed=timefunc()-start
+    return(elapsed,ret)
+
+&gt;&gt;&gt; def best(func,*pargs,**kargs):
+    _reps=kargs.pop('_reps',50)
+    best=2**32
+    for i in range(_reps):
+        (time,ret)=timer(func,*pargs,**kargs)
+        if time&lt;best:best=time
+    return (best,ret)
+</code></pre>
+
+<p>列表解析在大多娄情况下表现最好，当使用内置函数时，map表现更好。</p>
+
+<h3 id="">其也建议</h3>
+
+<h4 id="timeit"><code>timeit</code>模块</h4>
+
+<h4 id="profile"><code>profile</code>标准库模块</h4>
+
+<h4 id="strformat"><code>str.format</code>格式化</h4>
+
+<h2 id=""><strong>函数陷阱</strong></h2>
+
+<blockquote>
+  <h4 id="">本地变量是静态检测的</h4>
+  
+  <h4 id="">默认和可变对象</h4>
+  
+  <h4 id="return">没有return语句的函数</h4>
+  
+  <h4 id="">嵌套作用域的循环变量</h4>
+</blockquote>
+<!-- content end -->
+</div>
+<br>
+<br>
+    <div id="disqus_thread"></div>
+	<div class="footer">
+		<p>欢迎光临……</p>
+	</div>
+</div>
+<script src="main.js"></script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ["\\(", "\\)"]], processEscapes: true}});
+</script>
+<script id="content" type="text/mustache">
+    <h1>{{title}}</h1>
+    <div class="tag">
+    {{date}}
+    {{#tags}}
+    <a href="/#/tag/{{name}}">#{{name}}</a>
+    {{/tags}}
+    </div>
+</script>
+<script id="pagesTemplate" type="text/mustache">
+    {{#pages}}
+    <li>
+        <a href="{{path}}">{{title}}</a>
+    </li>
+    {{/pages}}
+</script>
+<script>
+$(document).ready(function() {
+    $.ajax({
+        url: "main.json",
+        type: "GET",
+        dataType: "json",
+        success: function(data) {
+            $("#title").html(data.name);
+            var pagesTemplate = Hogan.compile($("#pagesTemplate").html());
+            var pagesHtml = pagesTemplate.render({"pages": data.pages});
+            $("#pages").append(pagesHtml);
+            //path
+            var path = "python迭代.html";
+            //path end
+            var now = 0;
+            for (var i = 0; i < data.posts.length; ++i)
+                if (path == data.posts[i].path)
+                    now = i;
+            var post = data.posts[now];
+            var tmp = post.tags.split(" ");
+            var tags = [];
+            for (var i = 0; i < tmp.length; ++i)
+                if (tmp[i].length > 0)
+                    tags.push({"name": tmp[i]});
+            var contentTemplate = Hogan.compile($("#content").html());
+            var contentHtml = contentTemplate.render({"title": post.title, "tags": tags, "date": post.date});
+            $("#main").prepend(contentHtml);
+            if (data.disqus_shortname.length > 0) {
+                var disqus_shortname = data.disqus_shortname;
+                (function() {
+                    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+                    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+                    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+                })();
+            }
+        }
+    });
+});
+</script>
+</body>
+</html>
